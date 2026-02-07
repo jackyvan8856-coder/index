@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบลงคะแนนเลือกตั้ง</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+    /* =========================================
+       🛠️ 1. แก้ไขรูปพื้นหลังตรงนี้ 
+       ========================================= */
+    :root {
+        /* ใส่ลิงก์รูปภาพพื้นหลังที่ต้องการ */
+        --bg-image: url('BG.png');
+    }
+
+    body {
+        font-family: 'Kanit', sans-serif;
+        margin: 0;
+        padding: 20px;
+        user-select: none; /* ห้ามลากคลุมข้อความ */
+        
+        /* พื้นหลังแบบเต็มจอ */
+        background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.7)), var(--bg-image);
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        min-height: 100vh;
+        color: white;
+    }
+
+    /* โลโก้โรงเรียน */
+    .school-logo {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 120px;
+        z-index: 2000;
+        filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+    }
+
+    h1, p { text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+
+    /* Layout หลัก */
+    .main-layout {
+        display: flex;
+        justify-content: center;
+        gap: 25px;
+        margin-top: 90px;
+        padding-bottom: 50px;
+    }
+
+    .candidate-container {
+        display: grid;
+        grid-template-columns: repeat(2, 300px);
+        gap: 30px;
+    }
+
+    /* การ์ดผู้สมัคร */
+    .candidate-card {
+        background: #fff;
+        border-radius: 18px;
+        width: 300px;
+        height: 300px;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.5);
+        cursor: pointer;
+        transition: .25s;
+        position: relative;
+        border: 4px solid white;
+        overflow: hidden;
+    }
+    .candidate-card:hover {
+        transform: translateY(-5px);
+        border-color: #38bdf8;
+        box-shadow: 0 15px 35px rgba(56, 189, 248, 0.4);
+    }
+
+    .candidate-no {
+        position: absolute;
+        top: 10px; left: 10px;
+        background: #007bff; color: #fff;
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 17px; font-weight: bold; z-index: 10;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .candidate-card img, .no-vote-card img {
+        width: 100%; object-fit: cover; display: block;
+    }
+    .candidate-card img { height: 245px; }
+
+    .candidate-info { padding: 10px; text-align: center; }
+    .candidate-info h2 { margin: 0; font-size: 1.05rem; color: #333; }
+    .candidate-info p { margin-top: 4px; color: #007bff; font-size: 1.0rem; font-weight: 600; }
+
+    /* เบอร์ 5 ไม่ประสงค์ลงคะแนน */
+    .no-vote-card {
+        width: 300px; height: 320px;
+        background: linear-gradient(135deg, #ef4444, #991b1b);
+        color: white;
+        border-radius: 20px;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+        cursor: pointer;
+        transition: .25s;
+        position: relative;
+        margin-top: 160px;
+        overflow: hidden;
+        border: 4px solid rgba(255,255,255,0.2);
+    }
+    .no-vote-card:hover { transform: translateY(-5px); border-color: #fff; }
+    .no-vote-card .candidate-no { background: white; color: #b91c1c; }
+    .no-vote-card img { height: 240px; }
+    .no-vote-card .candidate-info p { color: #ffecec; }
+    .no-vote-card .candidate-info h2 { color: white; }
+
+    /* --- หน้าจอล็อก (Lock Screen - รอ Admin) --- */
+    #lock-screen {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        color: white; z-index: 3000;
+        text-align: center; padding-top: 18vh;
+    }
+
+    /* --- หน้าจอใส่รหัสเข้าเครื่อง (Setup Screen) --- */
+    #setup-screen {
+        display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        position: fixed; inset: 0;
+        background: rgba(15, 23, 42, 0.6); /* พื้นหลังโปร่งแสง */
+        backdrop-filter: blur(15px); /* เบลอพื้นหลัง */
+        z-index: 4000; color: white;
+    }
+    .setup-box {
+        background: rgba(30, 41, 59, 0.85);
+        padding: 40px; border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+        width: 400px;
+    }
+    .setup-input {
+        font-family: 'Kanit'; font-size: 24px;
+        padding: 10px; width: 80%; margin: 20px 0;
+        text-align: center; border-radius: 10px;
+        border: 2px solid #475569; background: #0f172a;
+        color: white; outline: none;
+    }
+    .setup-input:focus { border-color: #38bdf8; }
+    .setup-btn {
+        font-family: 'Kanit'; font-size: 20px;
+        padding: 10px 30px; background: #38bdf8; color: #0f172a;
+        border: none; border-radius: 10px; cursor: pointer; font-weight: bold;
+    }
+    .setup-btn:hover { background: #0ea5e9; }
+    .error-msg { color: #ef4444; margin-top: 10px; display: none; font-weight: bold; }
+
+    /* --- Popup ยืนยัน (Confirmation Modal) --- */
+    #confirm-modal {
+        display: none; /* ซ่อนไว้ก่อน */
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 2500;
+        justify-content: center; align-items: center;
+        animation: fadeIn 0.2s;
+        backdrop-filter: blur(5px);
+    }
+
+    .confirm-box {
+        background: #1e293b;
+        width: 90%; max-width: 450px;
+        border-radius: 20px; padding: 30px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        border: 1px solid #475569;
+    }
+
+    .confirm-preview-img {
+        width: 150px; height: 150px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 5px solid #38bdf8;
+        margin: 0 auto 15px; display: block;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .confirm-name { font-size: 1.8rem; font-weight: bold; color: #38bdf8; margin: 10px 0 5px; }
+    .confirm-party { font-size: 1.2rem; color: #94a3b8; margin-bottom: 30px; }
+
+    .btn-group { display: flex; gap: 15px; justify-content: center; }
+
+    .btn-yes {
+        background: #22c55e; color: white;
+        border: none; padding: 12px 30px;
+        border-radius: 10px; font-size: 1.2rem; font-family: 'Kanit';
+        cursor: pointer; transition: 0.2s; flex: 1;
+    }
+    .btn-yes:hover { background: #16a34a; transform: scale(1.05); }
+
+    .btn-no {
+        background: #ef4444; color: white;
+        border: none; padding: 12px 30px;
+        border-radius: 10px; font-size: 1.2rem; font-family: 'Kanit';
+        cursor: pointer; transition: 0.2s; flex: 1;
+    }
+    .btn-no:hover { background: #dc2626; transform: scale(1.05); }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+</style>
+</head>
+
+<body>
+
+<img src="6.png" class="school-logo">
+
+<div id="setup-screen">
+  <div class="setup-box">
+    <div style="font-size: 50px; margin-bottom: 10px;">🔐</div>
+    <h1>ตั้งค่าคูหาเลือกตั้ง</h1>
+    <p style="color:#cbd5e1">กรุณาใส่รหัสผ่านเพื่อเปิดใช้งานเครื่องนี้</p>
+    <input type="password" id="booth-password" class="setup-input" placeholder="รหัสผ่าน..." autofocus>
+    <br>
+    <button onclick="checkSetup()" class="setup-btn">เข้าสู่ระบบ</button>
+    <p id="setup-error" class="error-msg">❌ รหัสผ่านไม่ถูกต้อง</p>
+  </div>
+</div>
+
+<div id="lock-screen">
+  <div style="font-size:80px; margin-bottom: 20px;">🔒</div>
+  <h1>กำลังเชื่อมต่อระบบ...</h1>
+  <p style="font-size: 1.5rem; color: #cbd5e1;">รอสัญญาณจากเครื่องควบคุม</p>
+</div>
+
+<div id="confirm-modal">
+    <div class="confirm-box">
+        <h2 style="color:white; margin-top:0;">ยืนยันการลงคะแนน?</h2>
+        
+        <img id="c-img" src="" class="confirm-preview-img">
+        <div id="c-name" class="confirm-name">...</div>
+        <div id="c-party" class="confirm-party">...</div>
+
+        <div class="btn-group">
+            <button class="btn-no" onclick="closeConfirm()">ยกเลิก</button>
+            <button id="confirm-btn-yes" class="btn-yes">ยืนยัน</button>
+        </div>
+    </div>
+</div>
+
+<div class="main-layout">
+  <h1 style="position:absolute; top:20px; width:100%; text-align:center; z-index:1000; color:white; text-shadow: 0 0 10px black;">🗳️ เชิญลงคะแนนเลือกสภานักเรียน</h1>
+
+  <div class="candidate-container">
+    <div class="candidate-card" onclick="askConfirm(1)">
+      <div class="candidate-no">1</div>
+      <img src="n1.jpg">
+      <div class="candidate-info">
+        <h2>เบอร์ 1</h2>
+        <p>พรรคใจมารวมกัน</p>
+      </div>
+    </div>
+
+    <div class="candidate-card" onclick="askConfirm(2)">
+      <div class="candidate-no">2</div>
+      <img src="n2.jpg">
+      <div class="candidate-info">
+        <h2>เบอร์ 2</h2>
+        <p>พรรคใจไว้ที่เรา(PJWTR)</p>
+      </div>
+    </div>
+
+    <div class="candidate-card" onclick="askConfirm(3)">
+      <div class="candidate-no">3</div>
+      <img src="n3.jpg">
+      <div class="candidate-info">
+        <h2>เบอร์ 3</h2>
+        <p>พรรคเพื่อน้อง พี่พร้อมพัฒนา</p>
+      </div>
+    </div>
+
+    <div class="candidate-card" onclick="askConfirm(4)">
+      <div class="candidate-no">4</div>
+      <img src="n4.jpg">
+      <div class="candidate-info">
+        <h2>เบอร์ 4</h2>
+        <p>พรรคก้าวสั้นๆแต่มั่นคง</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="no-vote-card" onclick="askConfirm(0)">
+    <div class="candidate-no">❌</div>
+    <img src="UN.jpg"> <div class="candidate-info">
+      <h2>ไม่ประสงค์ลงคะแนน</h2>
+      <p>งดออกเสียง</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 🛠️ 2. ตั้งค่าระบบ
+// ==========================================
+const SETUP_PASSWORD = "9999"; // รหัสผ่านเปิดเครื่อง
+const scriptURL = "https://script.google.com/macros/s/AKfycbyeUfP18-a_KUJ7cw-DF53uP09622ExJijPMhh9D1gXFNE5AUV8-OvWMfqQ7PyvztnW/exec"; // URL จาก Google Apps Script
+
+// ข้อมูลสำหรับแสดงใน Popup (แก้ไขชื่อ/รูป ตรงนี้ได้)
+const candidateData = {
+    1: { name: "เบอร์ 1", party: "พรรคใจมารวมกัน", img: "n1.jpg" },
+    2: { name: "เบอร์ 2", party: "พรรคใจไว้ที่เรา(PJWTR)", img: "n2.jpg" },
+    3: { name: "เบอร์ 3", party: "พรรคเพื่อน้อง พี่พร้อมพัฒนา", img: "n3.jpg" },
+    4: { name: "เบอร์ 4", party: "พรรคก้าวสั้นๆแต่มั่นคง", img: "n4.jpg" },
+    0: { name: "ไม่ประสงค์ลงคะแนน", party: "งดออกเสียง", img: "UN.jpg" }
+};
+// ==========================================
+
+let canVote = false;
+let hasVoted = false;
+let votedThisRound = false;
+let systemStarted = false; 
+
+// --- 1. ฟังก์ชันเช็ครหัสผ่านเปิดเครื่อง ---
+function checkSetup() {
+  const input = document.getElementById('booth-password').value;
+  if(input === SETUP_PASSWORD) {
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('lock-screen').style.display = 'block';
+    systemStarted = true;
+    startSystemPolling(); // เริ่มทำงานเช็คสถานะ
+  } else {
+    document.getElementById('setup-error').style.display = 'block';
+    document.getElementById('booth-password').value = '';
+    // สั่นกล่อง login
+    const box = document.querySelector('.setup-box');
+    box.style.transform = 'translateX(5px)';
+    setTimeout(() => box.style.transform = 'translateX(-5px)', 50);
+    setTimeout(() => box.style.transform = 'translateX(0)', 100);
+  }
+}
+// กด Enter เพื่อ Login ได้
+document.getElementById("booth-password").addEventListener("keypress", (e) => { if (e.key === "Enter") checkSetup(); });
+
+// --- 2. ฟังก์ชันเช็คสถานะจาก Google Sheet (Polling) ---
+function startSystemPolling() {
+  setInterval(() => {
+    if(!systemStarted) return; 
+    fetch(scriptURL)
+      .then(r => r.text())
+      .then(status => {
+        status = status.trim();
+        // ถ้าสถานะเป็น OPEN และยังไม่โหวต -> ปลดล็อก
+        if(status === "OPEN" && !votedThisRound){
+          canVote = true; hasVoted = false;
+          document.getElementById('lock-screen').style.display = "none";
+        }
+        // ถ้าสถานะเป็น CLOSE -> ล็อกจอ
+        if(status === "CLOSE"){
+          canVote = false; votedThisRound = false;
+          closeConfirm(); // ปิด popup ถ้าค้างอยู่
+          showLock("🔒 คูหายังไม่เปิด", "รอเจ้าหน้าที่เรียก");
+        }
+      }).catch(err => console.log("Waiting for connection..."));
+  }, 1000); // เช็คทุก 1 วินาที
+}
+
+// --- 3. ฟังก์ชัน Popup ยืนยัน (แก้บั๊ก null แล้ว) ---
+function askConfirm(n) {
+    if(!canVote || hasVoted) return;
+    
+    // ดึงข้อมูลมาโชว์
+    const data = candidateData[n];
+    document.getElementById('c-img').src = data.img;
+    document.getElementById('c-name').innerText = data.name;
+    document.getElementById('c-party').innerText = data.party;
+
+    // เปลี่ยนสีถ้าเป็นงดออกเสียง
+    if(n === 0) {
+        document.getElementById('c-name').style.color = "#ef4444";
+        document.getElementById('c-img').style.borderColor = "#ef4444";
+    } else {
+        document.getElementById('c-name').style.color = "#38bdf8";
+        document.getElementById('c-img').style.borderColor = "#38bdf8";
+    }
+
+    // 🔥 กำหนดให้ปุ่มยืนยัน รู้จักเลข n ทันที (แก้ปัญหาตัวแปรลอย)
+    const yesBtn = document.getElementById('confirm-btn-yes');
+    yesBtn.onclick = function() { finalSubmit(n); };
+
+    // แสดง Popup
+    document.getElementById('confirm-modal').style.display = 'flex';
+}
+
+function closeConfirm() {
+    document.getElementById('confirm-modal').style.display = 'none';
+}
+
+// --- 4. ฟังก์ชันส่งคะแนน (Final Submit) ---
+function finalSubmit(n) {
+    closeConfirm(); 
+    
+    hasVoted = true;
+    canVote = false;
+    votedThisRound = true;
+
+    showLock("✅ บันทึกคะแนนแล้ว", "กรุณาออกจากคูหา");
+
+    // ส่งข้อมูลไป Google Sheet
+    fetch(scriptURL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: "candidate=" + n
+    });
+
+    // หน่วงเวลา 3 วิ แล้วขึ้นข้อความรอรอบถัดไป
+    setTimeout(() => {
+        showLock("🔒 รอการเปิดรอบถัดไป", "กรุณารอครูกดเปิด");
+    }, 3000);
+}
+
+function showLock(title, desc){
+  const ls = document.getElementById('lock-screen');
+  ls.style.display = "block";
+  ls.innerHTML = `
+    <div style="font-size:80px; margin-bottom:20px;">${title.startsWith("✅") ? "✅" : "🔒"}</div>
+    <h1>${title}</h1>
+    <p style="font-size:1.5rem; color:#cbd5e1">${desc}</p>
+  `;
+}
+</script>
+
+</body>
+</html>
